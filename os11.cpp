@@ -3,6 +3,8 @@
 #include <ctime>
 #include <cstdio>
 using namespace std;
+#include <vector>
+#include <algorithm>
 
 struct PatientProcess
 {
@@ -46,4 +48,25 @@ long long calculateWaitingMinutes(string arrivalTime)
         return 0;
 
     return currentTime - arrival;
+}
+
+void applyPriorityScheduling(vector<PatientProcess>& readyQueue)
+{
+    for (auto& process : readyQueue)
+    {
+        process.priorityTier = getPriorityTier(process.priority);
+        process.waitingMinutes = calculateWaitingMinutes(process.arrivalTime);
+    }
+
+    sort(readyQueue.begin(), readyQueue.end(),
+        [](const PatientProcess& a, const PatientProcess& b)
+        {
+            if (a.priorityTier != b.priorityTier)
+                return a.priorityTier < b.priorityTier;
+
+            if (a.waitingMinutes != b.waitingMinutes)
+                return a.waitingMinutes > b.waitingMinutes;
+
+            return a.appointmentId < b.appointmentId;
+        });
 }
