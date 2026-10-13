@@ -2,12 +2,13 @@
 #include <string>
 #include <ctime>
 #include <cstdio>
-using namespace std;
 #include <vector>
 #include <algorithm>
 
+using namespace std;
 
-struct DispatchDecision {
+struct DispatchDecision
+{
     bool found = false;
     int appointmentId = -1;
     int doctorId = -1;
@@ -45,10 +46,17 @@ long long calculateWaitingMinutes(string arrivalTime)
 {
     int hours = 0, minutes = 0;
 
-    sscanf(arrivalTime.c_str(), "%d:%d", &hours, &minutes);
+    if (sscanf(arrivalTime.c_str(), "%d:%d", &hours, &minutes) != 2)
+        return 0;
+
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59)
+        return 0;
 
     time_t now = time(0);
     tm *local = localtime(&now);
+
+    if (local == nullptr)
+        return 0;
 
     int currentTime = local->tm_hour * 60 + local->tm_min;
     int arrival = hours * 60 + minutes;
@@ -80,33 +88,64 @@ void applyPriorityScheduling(vector<PatientProcess>& readyQueue)
         });
 }
 
+bool isDoctorAvailable(int doctorId, const vector<int>& availableDoctors)
+{
+    for (int id : availableDoctors)
+    {
+        if (id == doctorId)
+            return true;
+    }
+
+    return false;
+}
+
 DispatchDecision selectNextPatientForDoctor(
     const vector<PatientProcess>& readyQueue,
-    int availableDoctorId) {
+    int availableDoctorId)
+{
+    DispatchDecision result;
+    result.doctorId = availableDoctorId;
 
-    for (const auto& process : readyQueue) {
-        if (process.doctorId == availableDoctorId) {
+    for (const auto& process : readyQueue)
+    {
+        if (process.doctorId == availableDoctorId)
+        {
+            result.found = true;
+            result.appointmentId = process.appointmentId;
+            result.patientName = process.patientName;
+            result.reason = "Patient selected successfully";
+            return result;
+        }
+    }
+
+    result.reason = "No waiting patient for this doctor";
+    return result;
+}
+
+DispatchDecision checkDoctorAvailability(
+    const vector<PatientProcess>& readyQueue,
+    const vector<int>& availableDoctors)
+{
+    for (const auto& process : readyQueue)
+    {
+        if (isDoctorAvailable(process.doctorId, availableDoctors))
+        {
             DispatchDecision result;
-
             result.found = true;
             result.appointmentId = process.appointmentId;
             result.doctorId = process.doctorId;
             result.patientName = process.patientName;
-            result.reason = "Patient selected successfully";
-
+            result.reason = "Available doctor assigned successfully";
             return result;
         }
     }
 
     DispatchDecision result;
-    result.doctorId = availableDoctorId;
-    result.reason = "No waiting patient for this doctor";
-
+    result.reason = "No waiting patient has an available doctor";
     return result;
 }
 
-
-int main() 
+int main()
 {
     vector<PatientProcess> readyQueue = {
         {1001, 501, 11, "Patient A", "Doctor X", "Medium", "Booked", "09:05:00"},
@@ -118,24 +157,48 @@ int main()
     applyPriorityScheduling(readyQueue);
 
     int rank = 1;
-    for (const auto& process : readyQueue) 
+
+    for (const auto& process : readyQueue)
     {
         cout << rank++ << ". Appointment: " << process.appointmentId
              << " | Patient: " << process.patientName
              << " | Doctor ID: " << process.doctorId
              << " | Priority: " << process.priority
-             << " | Waiting Time: " << process.waitingMinutes << " minutes\n";
+             << " | Waiting Time: " << process.waitingMinutes
+             << " minutes\n";
     }
 
     DispatchDecision decision = selectNextPatientForDoctor(readyQueue, 11);
 
-    if (decision.found) 
+    if (decision.found)
     {
         cout << "\nDoctor ID: " << decision.doctorId;
         cout << "\nSelected Appointment: " << decision.appointmentId;
-        cout << "\nPatient Name: " << decision.patientName << "\n";
-    } else {
+        cout << "\nPatient Name: " << decision.patientName;
+        cout << "\nReason: " << decision.reason << "\n";
+    }
+    else
+    {
         cout << "\n" << decision.reason << "\n";
+    }
+
+    vector<int> availableDoctors = {12};
+
+    DispatchDecision availabilityDecision =
+        checkDoctorAvailability(readyQueue, availableDoctors);
+
+    cout << "\nDoctor Availability Check:\n";
+
+    if (availabilityDecision.found)
+    {
+        cout << "Doctor ID: " << availabilityDecision.doctorId;
+        cout << "\nSelected Appointment: " << availabilityDecision.appointmentId;
+        cout << "\nPatient Name: " << availabilityDecision.patientName;
+        cout << "\nReason: " << availabilityDecision.reason << "\n";
+    }
+    else
+    {
+        cout << availabilityDecision.reason << "\n";
     }
 
     cout << "\nDemo completed successfully.\n";
