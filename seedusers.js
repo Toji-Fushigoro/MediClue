@@ -23,9 +23,10 @@ const mysql  = require('mysql2/promise');
     ['amit',     hash, 'PATIENT',      1],
     ['priya',    hash, 'PATIENT',      2],
     ['ravi',     hash, 'PATIENT',      3],
-    ['sunita',   hash, 'PATIENT',      4],
-    ['karan',    hash, 'PATIENT',      5],
-    ['neha',     hash, 'PATIENT',      6],
+    ['dikshant',   hash, 'PATIENT',      4],
+    ['tanishk',    hash, 'PATIENT',      5],
+    ['vansh',     hash, 'PATIENT',      6],
+    ['sumeet',     hash, 'PATIENT',      6],
   ];
 
   // Clear and re-insert
