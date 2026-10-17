@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediClue – Video Consultation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #06090f; --surface: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.1); --text: #e2e8f0; --muted: #64748b;
+    --green: #10b981; --red: #ef4444; --blue: #3b82f6; --teal: #0ea5e9;
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── Header ── */
+  header { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px; border-bottom: 1px solid var(--border);
+    background: rgba(6,9,15,0.9); backdrop-filter: blur(10px); flex-shrink: 0; }
+  .brand { font-size: 18px; font-weight: 700; color: #fff; }
+  .brand span { color: var(--teal); }
+  .call-info { font-size: 13px; color: var(--muted); }
+  .call-info b { color: var(--text); }
+  .timer { font-size: 14px; font-weight: 600; color: var(--green);
+    font-variant-numeric: tabular-nums; }
+
+  /* ── Video area ── */
+  .video-area { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    padding: 16px; min-height: 0; }
+  @media(max-width: 700px) { .video-area { grid-template-columns: 1fr; } }
+
+  .video-box { position: relative; background: #0d1117; border-radius: 16px;
+    border: 1px solid var(--border); overflow: hidden;
+    display: flex; align-items: center; justify-content: center; min-height: 280px; }
+  .video-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .video-label { position: absolute; bottom: 12px; left: 14px;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(6px);
+    padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .video-label.you { background: rgba(26,86,219,0.5); }
+  .video-label.peer { background: rgba(16,185,129,0.5); }
+
+  .avatar-placeholder { text-align: center; }
+  .avatar-placeholder .av-icon { font-size: 64px; margin-bottom: 12px; opacity: 0.4; }
+  .avatar-placeholder .av-name { font-size: 15px; color: var(--muted); }
+
+  .mic-off-badge { position: absolute; top: 12px; right: 14px;
+    background: rgba(239,68,68,0.75); border-radius: 6px;
+    padding: 3px 8px; font-size: 11px; display: none; }
+  .mic-off-badge.show { display: block; }
+
+  /* ── Waiting overlay ── */
+  .waiting-overlay { position: absolute; inset: 0; background: rgba(6,9,15,0.85);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; border-radius: 16px; }
+  .waiting-overlay .pulse { width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(14,165,233,0.15); border: 2px solid var(--teal);
+    animation: pulse 1.5s ease-in-out infinite; display: flex; align-items: center;
+    justify-content: center; font-size: 28px; }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.1);opacity:0.7} }
+  .waiting-overlay p { color: var(--muted); font-size: 14px; }
+
+  /* ── Controls ── */
+  .controls { display: flex; align-items: center; justify-content: center;
+    gap: 16px; padding: 20px; border-top: 1px solid var(--border);
+    background: rgba(6,9,15,0.9); flex-shrink: 0; }
+  .ctrl-btn { width: 52px; height: 52px; border-radius: 50%; border: none;
+    cursor: pointer; font-size: 20px; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; }
+  .ctrl-btn:hover { transform: scale(1.1); }
+  .ctrl-btn.on  { background: rgba(255,255,255,0.12); }
+  .ctrl-btn.off { background: rgba(239,68,68,0.25); border: 1px solid rgba(239,68,68,0.4); }
+  .ctrl-end { width: 60px; height: 60px; background: var(--red); }
+  .ctrl-end:hover { background: #dc2626; box-shadow: 0 4px 20px rgba(239,68,68,0.5); }
+
+  /* ── Status bar ── */
+  #statusBar { padding: 8px 24px; font-size: 13px; text-align: center;
+    background: rgba(14,165,233,0.08); border-top: 1px solid rgba(14,165,233,0.15);
+    color: var(--teal); flex-shrink: 0; }
+
+  /* ── Toast ── */
+  #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px);
+    padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  #toast.ok  { background: rgba(16,185,129,0.2); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+  #toast.err { background: rgba(239,68,68,0.2);  border: 1px solid rgba(239,68,68,0.4);  color: #fca5a5; }
+  #toast.info{ background: rgba(14,165,233,0.2); border: 1px solid rgba(14,165,233,0.4);  color: #7dd3fc; }
+
+  .ended-screen { display: none; position: fixed; inset: 0;
+    background: var(--bg); flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; z-index: 200; }
+  .ended-screen.show { display: flex; }
+  .ended-icon { font-size: 64px; }
+  .ended-title { font-size: 22px; font-weight: 700; }
+  .ended-sub { color: var(--muted); font-size: 14px; }
+  .btn-back { padding: 12px 28px; background: var(--blue); color: #fff; border: none;
+    border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; margin-top: 8px; }
+  .btn-back:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Medi<span>Clue</span> <small style="font-size:11px;color:var(--muted);font-weight:400;">Video Consultation</small></div>
+  <div class="call-info" id="callInfo">Connecting…</div>
+  <div class="timer" id="callTimer">00:00</div>
+</header>
+
+<div class="video-area">
+  <!-- Remote peer video -->
+  <div class="video-box" id="remoteBox">
+    <div class="waiting-overlay" id="waitingOverlay">
+      <div class="pulse">👤</div>
+      <p id="waitingText">Waiting for the other party to join…</p>
+    </div>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <div class="video-label peer" id="remoteLabel">Remote</div>
+  </div>
+
+  <!-- Local video -->
+  <div class="video-box" id="localBox">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <div class="video-label you">You</div>
+    <div class="mic-off-badge" id="micOffBadge">🎤 Muted</div>
+    <div class="avatar-placeholder" id="localPlaceholder">
+      <div class="av-icon">📷</div>
+      <div class="av-name">Starting camera…</div>
+    </div>
+  </div>
+</div>
+
+<div id="statusBar">🔄 Initialising connection…</div>
+
+<div class="controls">
+  <button class="ctrl-btn on" id="btnMic"   onclick="toggleMic()"    title="Toggle mic">🎤</button>
+  <button class="ctrl-btn on" id="btnCam"   onclick="toggleCam()"    title="Toggle camera">📷</button>
+  <button class="ctrl-btn ctrl-end" onclick="endCall()" title="End call">📵</button>
+</div>
+
+<div class="ended-screen" id="endedScreen">
+  <div class="ended-icon">✅</div>
+  <div class="ended-title">Consultation Ended</div>
+  <div class="ended-sub">The video call has been completed.</div>
+  <button class="btn-back" onclick="goBack()">← Back to Dashboard</button>
+</div>
+
+<div id="toast"></div>
+
+<!-- Socket.io (served by server) -->
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ─── URL params ───────────────────────────────────────────────────
+const params   = new URLSearchParams(location.search);
+const ROOM_ID  = params.get('room');
+const MY_ROLE  = params.get('role');   // 'doctor' or 'patient'
+const APPT_ID  = params.get('appt');
+
+if (!ROOM_ID || !MY_ROLE) {
+  document.getElementById('statusBar').textContent = '❌ Missing room or role parameter.';
+}
+
+const IS_DOCTOR = MY_ROLE === 'doctor';
+const PEER_LABEL = IS_DOCTOR ? 'Patient' : 'Doctor';
+
+document.getElementById('remoteLabel').textContent = PEER_LABEL;
+document.getElementById('callInfo').innerHTML =
+  `<b>${IS_DOCTOR ? '👨‍⚕️ Doctor' : '🧑 Patient'}</b> · Room: ${ROOM_ID.slice(0,20)}…`;
+
+// ─── Toast ────────────────────────────────────────────────────────
+function toast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  setTimeout(() => t.className='', 3500);
+}
+function setStatus(msg) { document.getElementById('statusBar').textContent = msg; }
+
+// ─── Timer ────────────────────────────────────────────────────────
+let timerSecs = 0, timerInterval = null;
+function startTimer() {
+  timerInterval = setInterval(() => {
+    timerSecs++;
+    const m = String(Math.floor(timerSecs/60)).padStart(2,'0');
+    const s = String(timerSecs%60).padStart(2,'0');
+    document.getElementById('callTimer').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+// ─── Media streams ────────────────────────────────────────────────
+let localStream = null;
+let micEnabled  = true;
+let camEnabled  = true;
+
+async function getMedia() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('localVideo').srcObject = localStream;
+    document.getElementById('localPlaceholder').style.display = 'none';
+    setStatus('📷 Camera ready · Connecting to peer…');
+  } catch(e) {
+    toast('Camera/mic access denied. Trying audio only…', 'err');
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setStatus('🎤 Audio only mode');
+    } catch(e2) {
+      setStatus('❌ No media access. Check browser permissions.');
+    }
+  }
+}
+
+function toggleMic() {
+  if (!localStream) return;
+  micEnabled = !micEnabled;
+  localStream.getAudioTracks().forEach(t => t.enabled = micEnabled);
+  document.getElementById('btnMic').className  = `ctrl-btn ${micEnabled?'on':'off'}`;
+  document.getElementById('btnMic').textContent = micEnabled ? '🎤' : '🔇';
+  document.getElementById('micOffBadge').className = `mic-off-badge ${micEnabled?'':'show'}`;
+}
+function toggleCam() {
+  if (!localStream) return;
+  camEnabled = !camEnabled;
+  localStream.getVideoTracks().forEach(t => t.enabled = camEnabled);
+  document.getElementById('btnCam').className  = `ctrl-btn ${camEnabled?'on':'off'}`;
+  document.getElementById('btnCam').textContent = camEnabled ? '📷' : '🚫';
+  document.getElementById('localPlaceholder').style.display = camEnabled ? 'none' : 'flex';
+}
+
+// ─── WebRTC ───────────────────────────────────────────────────────
+const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let pc = null;
+let peerJoined = false;
+
+function createPeerConnection() {
+  pc = new RTCPeerConnection(ICE_SERVERS);
+
+  if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  pc.onicecandidate = ({ candidate }) => {
+    if (candidate) socket.emit('ice-candidate', ROOM_ID, candidate);
+  };
+
+  pc.ontrack = ({ streams }) => {
+    document.getElementById('remoteVideo').srcObject = streams[0];
+    document.getElementById('waitingOverlay').style.display = 'none';
+    if (!timerInterval) startTimer();
+    setStatus(`✅ Connected to ${PEER_LABEL}`);
+    toast(`${PEER_LABEL} joined the call`, 'ok');
+  };
+
+  pc.onconnectionstatechange = () => {
+    const s = pc.connectionState;
+    if (s === 'connected')     setStatus(`✅ Connected to ${PEER_LABEL}`);
+    if (s === 'disconnected')  setStatus('⚠️ Connection interrupted…');
+    if (s === 'failed')        setStatus('❌ Connection failed. Try refreshing.');
+  };
+}
+
+// ─── Socket.io ────────────────────────────────────────────────────
+const socket = io();
+
+socket.on('connect', async () => {
+  setStatus('🔌 Connected to server · Joining room…');
+  await getMedia();
+  socket.emit('join-room', ROOM_ID, MY_ROLE);
+});
+
+// Other peer joined → doctor creates offer
+socket.on('peer-joined', async ({ role }) => {
+  peerJoined = true;
+  document.getElementById('waitingText').textContent = `${PEER_LABEL} is connecting…`;
+  toast(`${PEER_LABEL} joined! Starting call…`, 'info');
+  setStatus(`👋 ${PEER_LABEL} joined · Starting WebRTC handshake…`);
+
+  if (IS_DOCTOR) {
+    createPeerConnection();
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('offer', ROOM_ID, offer);
+    } catch(e) { toast('Failed to create offer: ' + e.message, 'err'); }
+  }
+});
+
+// Patient receives offer → sends answer
+socket.on('offer', async (offer) => {
+  if (!pc) createPeerConnection();
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.emit('answer', ROOM_ID, answer);
+    setStatus('🤝 Handshake in progress…');
+  } catch(e) { toast('Offer handling failed: ' + e.message, 'err'); }
+});
+
+// Doctor receives answer
+socket.on('answer', async (answer) => {
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+  } catch(e) { toast('Answer handling failed: ' + e.message, 'err'); }
+});
+
+// ICE candidate exchange
+socket.on('ice-candidate', async (candidate) => {
+  if (!pc) return;
+  try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); }
+  catch(e) { /* non-fatal */ }
+});
+
+// Peer ended call
+socket.on('call-ended', () => {
+  setStatus('📵 The other party ended the call');
+  toast('Call ended by ' + PEER_LABEL, 'info');
+  showEndedScreen();
+});
+
+socket.on('peer-left', () => {
+  setStatus('⚠️ ' + PEER_LABEL + ' left the call');
+  toast(PEER_LABEL + ' disconnected', 'err');
+  document.getElementById('waitingOverlay').style.display = 'flex';
+  document.getElementById('waitingText').textContent = PEER_LABEL + ' disconnected…';
+});
+
+// ─── End Call ─────────────────────────────────────────────────────
+function endCall() {
+  socket.emit('end-call', ROOM_ID);
+  cleanup();
+  showEndedScreen();
+}
+
+function cleanup() {
+  if (timerInterval) clearInterval(timerInterval);
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+}
+
+function showEndedScreen() {
+  cleanup();
+  document.getElementById('endedScreen').classList.add('show');
+}
+
+function goBack() {
+  const role = localStorage.getItem('mc_role');
+  if (role === 'DOCTOR')   window.location.href = '/doctor.html';
+  else if (role === 'PATIENT') window.location.href = '/patient.html';
+  else window.location.href = '/login.html';
+}
+
+// If doctor joins first, show "waiting for patient" message
+if (IS_DOCTOR) {
+  document.getElementById('waitingText').textContent = 'Waiting for patient to join…';
+} else {
+  document.getElementById('waitingText').textContent = 'Waiting for doctor to connect…';
+}
+</script>
+</body>
+</html>

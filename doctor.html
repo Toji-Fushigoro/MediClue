@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediClue – Doctor Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --blue:#1a56db;--teal:#0ea5e9;--green:#10b981;
+    --orange:#f59e0b;--red:#ef4444;--purple:#8b5cf6;
+    --bg:#060f1e;--surface:rgba(255,255,255,.04);
+    --border:rgba(255,255,255,.09);--text:#e2e8f0;--muted:#64748b;
+  }
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+    background-image:radial-gradient(ellipse at 80% 0%,rgba(139,92,246,.1) 0%,transparent 50%),
+                     radial-gradient(ellipse at 0% 100%,rgba(16,185,129,.07) 0%,transparent 50%);}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:15px 26px;
+    border-bottom:1px solid var(--border);background:rgba(6,15,30,.85);
+    backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+  .brand{font-size:20px;font-weight:700;color:#fff}.brand span{color:var(--teal)}
+  .nav-r{display:flex;align-items:center;gap:10px}
+  .ubadge{background:var(--surface);border:1px solid var(--border);border-radius:7px;
+    padding:5px 12px;font-size:13px}
+  .btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);
+    border-radius:7px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px;
+    transition:all .2s}
+  .btn-logout:hover{border-color:var(--red);color:var(--red)}
+  .btn-chpw{background:transparent;border:1px solid var(--border);color:var(--muted);
+    border-radius:7px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .2s}
+  .btn-chpw:hover{border-color:var(--teal);color:var(--teal)}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;z-index:500;
+    opacity:0;pointer-events:none;transition:opacity .25s}
+  .modal-bg.open{opacity:1;pointer-events:all}
+  .modal{background:#0d1a2e;border:1px solid var(--border);border-radius:16px;
+    padding:28px 28px 24px;width:100%;max-width:360px;
+    transform:translateY(20px);transition:transform .25s}
+  .modal-bg.open .modal{transform:translateY(0)}
+  .modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+  .modal .field{margin-bottom:13px}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:500}
+  .modal input{width:100%;padding:10px 12px;background:rgba(255,255,255,.06);
+    border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px}
+  .modal input:focus{outline:none;border-color:rgba(59,130,246,.5)}
+  .modal-btns{display:flex;gap:9px;margin-top:18px}
+  .modal-btns .mbtn{flex:1;padding:9px;border-radius:8px;font-family:inherit;
+    font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+  .mbtn-save{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff}
+  .mbtn-cancel{background:rgba(255,255,255,.07);color:var(--muted)}
+  .pw-alert{margin-top:11px;padding:8px 12px;border-radius:7px;font-size:12px;display:none}
+  .pw-alert.ok {display:block;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+  .pw-alert.err{display:block;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+
+  main{max-width:1200px;margin:0 auto;padding:24px 18px}
+  .page-title{font-size:22px;font-weight:700;margin-bottom:4px}
+  .page-sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+
+  .tabs{display:flex;gap:6px;margin-bottom:22px;
+    background:rgba(255,255,255,.03);border:1px solid var(--border);
+    border-radius:12px;padding:5px;width:fit-content}
+  .tab{padding:8px 20px;border-radius:8px;border:none;background:transparent;
+    color:var(--muted);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;
+    transition:all .2s}
+  .tab.active{background:var(--blue);color:#fff}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+  @media(max-width:800px){.stats{grid-template-columns:1fr 1fr}}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:16px;display:flex;gap:12px;align-items:center}
+  .stat-icon{font-size:26px}
+  .stat-val{font-size:24px;font-weight:700}
+  .stat-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1.3fr;gap:18px}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}
+  .card:last-child{margin-bottom:0}
+  .card-title{font-size:14px;font-weight:600;margin-bottom:14px;
+    display:flex;align-items:center;justify-content:space-between}
+  .card-title-l{display:flex;align-items:center;gap:7px}
+
+  .in-consult{background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.2);
+    border-radius:10px;padding:12px 16px;margin-bottom:12px;
+    display:flex;align-items:center;justify-content:space-between}
+  .ic-name{font-weight:600;font-size:14px;color:#6ee7b7}
+  .ic-lbl{font-size:11px;color:var(--muted)}
+
+  .queue-item{display:flex;align-items:center;gap:10px;padding:10px;
+    background:rgba(255,255,255,.03);border:1px solid var(--border);
+    border-radius:9px;margin-bottom:7px}
+  .q-pos{width:26px;height:26px;border-radius:50%;background:rgba(26,86,219,.25);
+    color:#93c5fd;font-size:12px;font-weight:700;display:flex;align-items:center;
+    justify-content:center;flex-shrink:0}
+  .q-info{flex:1}
+  .q-name{font-weight:600;font-size:13px}
+  .q-meta{font-size:11px;color:var(--muted);margin-top:2px}
+  .q-prio{font-size:12px;font-weight:700;color:var(--teal)}
+
+  .pill{padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+  .u1{background:rgba(100,116,139,.2);color:#94a3b8}
+  .u2{background:rgba(26,86,219,.2);color:#93c5fd}
+  .u3{background:rgba(245,158,11,.2);color:#fcd34d}
+  .u4{background:rgba(239,68,68,.2);color:#fca5a5}
+
+  .online-card{background:rgba(14,165,233,.05);border:1px solid rgba(14,165,233,.2);
+    border-radius:11px;padding:13px;margin-bottom:9px}
+  .online-card.active{background:rgba(16,185,129,.08);border-color:rgba(16,185,129,.3)}
+  .on-patient{font-weight:600;font-size:13px}
+  .on-meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .on-actions{display:flex;gap:7px;margin-top:9px}
+
+  /* Buttons */
+  .btn{padding:8px 14px;border-radius:8px;font-family:inherit;font-size:13px;
+    font-weight:600;cursor:pointer;border:none;transition:all .2s}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,86,219,.4)}
+  .btn-green{background:linear-gradient(135deg,var(--green),#059669);color:#fff}
+  .btn-green:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(16,185,129,.4)}
+  .btn-finish{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+  .btn-finish:hover{background:rgba(245,158,11,.25)}
+  .btn-sm{padding:5px 11px;font-size:12px}
+  .btn-save{background:linear-gradient(135deg,var(--green),#059669);color:#fff;width:100%}
+
+  /* Availability grid */
+  .avail-grid{display:flex;flex-direction:column;gap:10px}
+  .avail-row{display:grid;grid-template-columns:90px 1fr 1fr 80px 48px;gap:8px;align-items:center}
+  @media(max-width:600px){.avail-row{grid-template-columns:70px 1fr 1fr 60px 40px}}
+  .avail-day{font-size:13px;font-weight:500}
+  .avail-hdr{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;
+    letter-spacing:.05em;margin-bottom:4px}
+  .avail-row input[type=time],
+  .avail-row select{padding:7px 10px;background:rgba(255,255,255,.06);
+    border:1px solid var(--border);border-radius:7px;color:var(--text);
+    font-family:inherit;font-size:12px}
+  .avail-row input[type=time]:focus,
+  .avail-row select:focus{outline:none;border-color:rgba(59,130,246,.5)}
+  select option{background:#1a2744}
+  .toggle-btn{width:40px;height:22px;border-radius:11px;border:none;cursor:pointer;
+    transition:all .2s;position:relative;flex-shrink:0}
+  .toggle-btn.on{background:var(--green)}
+  .toggle-btn.off{background:rgba(100,116,139,.3)}
+  .toggle-btn::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;
+    border-radius:50%;background:#fff;transition:transform .2s}
+  .toggle-btn.on::after{transform:translateX(18px)}
+
+  .empty{text-align:center;padding:28px;color:var(--muted);font-size:13px}
+  .empty .icon{font-size:30px;margin-bottom:8px}
+
+  #toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:9px;
+    font-size:13px;font-weight:500;transform:translateY(80px);opacity:0;
+    transition:all .3s;z-index:999}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.ok {background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+  #toast.err{background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.3); color:#fca5a5}
+  #toast.info{background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);color:#7dd3fc}
+
+  [data-panel]{display:none}[data-panel].visible{display:block}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">Medi<span>Clue</span> <small style="font-size:11px;color:var(--muted);font-weight:400">Doctor Dashboard</small></div>
+  <div class="nav-r">
+    <span class="ubadge" id="userBadge">…</span>
+    <button class="btn-chpw" onclick="openPwModal()">🔑 Change Password</button>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-title" id="docTitle">Doctor Dashboard</div>
+  <div class="page-sub">Manage your queue, online consultations and availability</div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-icon">⏳</div><div><div class="stat-val" id="sWait">–</div><div class="stat-lbl">Waiting</div></div></div>
+    <div class="stat"><div class="stat-icon">💻</div><div><div class="stat-val" id="sOnl">–</div><div class="stat-lbl">Online Pending</div></div></div>
+    <div class="stat"><div class="stat-icon">✅</div><div><div class="stat-val" id="sDone">–</div><div class="stat-lbl">Completed Today</div></div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showPanel('queue')">🏥 Queue</button>
+    <button class="tab"        onclick="showPanel('online')">💻 Online</button>
+    <button class="tab"        onclick="showPanel('availability')">🗓 My Availability</button>
+  </div>
+
+  <!-- ── QUEUE PANEL ── -->
+  <div data-panel="queue" class="visible">
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">
+          <div class="card-title-l"><span>🏥</span> Physical Queue</div>
+          <button class="btn btn-primary btn-sm" onclick="callNext()">Call Next ›</button>
+        </div>
+        <div id="inConsult"></div>
+        <div id="queueList"><div class="empty">Loading…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><div class="card-title-l"><span>📊</span> Today's Summary</div></div>
+        <div id="summaryBox"><div class="empty" style="padding:12px">Loading…</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ONLINE PANEL ── -->
+  <div data-panel="online">
+    <div class="card">
+      <div class="card-title"><div class="card-title-l"><span>💻</span> Online Consultation Requests</div></div>
+      <div id="onlineList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ── AVAILABILITY PANEL ── -->
+  <div data-panel="availability">
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-l"><span>🗓</span> Weekly Availability</div>
+        <button class="btn btn-green btn-sm" onclick="saveAvailability()">💾 Save</button>
+      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">
+        Set the days and hours you are available. Patients will only see slots within these hours.
+      </p>
+
+      <!-- Header row -->
+      <div class="avail-row" style="margin-bottom:6px">
+        <div class="avail-hdr">Day</div>
+        <div class="avail-hdr">Start Time</div>
+        <div class="avail-hdr">End Time</div>
+        <div class="avail-hdr">Slot (min)</div>
+        <div class="avail-hdr">Active</div>
+      </div>
+
+      <div class="avail-grid" id="availGrid">
+        <!-- Rows injected by JS -->
+      </div>
+
+      <button class="btn btn-save" style="margin-top:18px" onclick="saveAvailability()">💾 Save Availability</button>
+    </div>
+  </div>
+</main>
+<div id="toast"></div>
+
+<script>
+const token    = localStorage.getItem('mc_token');
+const role     = localStorage.getItem('mc_role');
+const username = localStorage.getItem('mc_username');
+const doctorId = localStorage.getItem('mc_linkedId');
+
+if (!token || role !== 'DOCTOR') { window.location.href = '/login.html'; }
+document.getElementById('userBadge').textContent = '👨‍⚕️ ' + username;
+
+function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show '+type;
+  setTimeout(() => t.className='', 3500);
+}
+
+async function api(url, method='GET', body) {
+  const res = await fetch(url, {
+    method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error||'Error');
+  return data;
+}
+
+const UL = {1:'Routine',2:'Normal',3:'Urgent',4:'Critical'};
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+function showPanel(name) {
+  document.querySelectorAll('[data-panel]').forEach(el=>el.classList.remove('visible'));
+  document.querySelector(`[data-panel="${name}"]`).classList.add('visible');
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',
+    (name==='queue'&&i===0)||(name==='online'&&i===1)||(name==='availability'&&i===2)));
+  if (name==='availability') loadAvailability();
+  if (name==='online') loadOnline();
+}
+
+/* ── QUEUE ── */
+async function loadQueue() {
+  try {
+    const q = await api('/api/my/queue');
+    document.getElementById('sWait').textContent = q.waiting.length;
+
+    const ic = document.getElementById('inConsult');
+    ic.innerHTML = q.inConsultation
+      ? `<div class="in-consult">
+          <div><div class="ic-lbl">Currently consulting</div>
+            <div class="ic-name">👤 ${q.inConsultation.patient_name}</div></div>
+          <button class="btn btn-finish btn-sm" onclick="complete(${q.inConsultation.id})">✓ Finish</button>
+         </div>`
+      : '<p style="font-size:13px;color:var(--muted);margin-bottom:10px">No active consultation</p>';
+
+    const ql = document.getElementById('queueList');
+    ql.innerHTML = q.waiting.length
+      ? q.waiting.map(w=>`
+          <div class="queue-item">
+            <div class="q-pos">${w.position}</div>
+            <div class="q-info">
+              <div class="q-name">${w.patient_name}</div>
+              <div class="q-meta">
+                <span class="pill u${w.urgency}">${UL[w.urgency]}</span>
+                &nbsp;${w.type}${w.isFollowUpWalkIn?' · follow-up':''}
+                &nbsp;· ${Math.floor(w.waitedMinutes)}m
+              </div>
+            </div>
+            <div class="q-prio">${w.priority.toFixed(0)}</div>
+          </div>`).join('')
+      : '<div class="empty"><div class="icon">🎉</div>Queue is empty</div>';
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function loadSummary() {
+  try {
+    const appts = await api('/api/appointments?date='+new Date().toISOString().slice(0,10));
+    const done  = appts.filter(a=>a.status==='COMPLETED').length;
+    const onl   = appts.filter(a=>a.consultation_mode==='ONLINE').length;
+    document.getElementById('sDone').textContent = done;
+    document.getElementById('summaryBox').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px">
+        <div style="padding:12px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#6ee7b7">${done}</div>
+          <div style="color:var(--muted);margin-top:4px">Completed</div></div>
+        <div style="padding:12px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.15);border-radius:8px;text-align:center">
+          <div style="font-size:22px;font-weight:700;color:#7dd3fc">${onl}</div>
+          <div style="color:var(--muted);margin-top:4px">Online Today</div></div>
+      </div>`;
+  } catch{}
+}
+
+async function callNext() {
+  try { const r=await api(`/api/queue/${doctorId}/next`,'POST'); toast(`Calling ${r.patient} 🔔`); loadQueue(); }
+  catch(e) { toast(e.message,'err'); }
+}
+async function complete(id) {
+  try { await api(`/api/appointments/${id}/complete`,'POST',{}); toast('Done ✅'); loadQueue(); loadOnline(); loadSummary(); }
+  catch(e) { toast(e.message,'err'); }
+}
+
+/* ── ONLINE ── */
+async function loadOnline() {
+  try {
+    const items = await api('/api/my/online-pending');
+    document.getElementById('sOnl').textContent = items.filter(x=>x.status==='ONLINE_PENDING').length;
+    const ol = document.getElementById('onlineList');
+    ol.innerHTML = items.length
+      ? items.map(a=>{
+          const active = a.status==='IN_VIDEO_CALL';
+          return `<div class="online-card ${active?'active':''}">
+            <div class="on-patient">👤 ${a.patient_name}</div>
+            <div class="on-meta">📅 ${a.slot_date||'–'} ${a.slot_time||''} · ${active?'🟢 In Call':'🔵 Waiting'}</div>
+            <div class="on-actions">
+              ${!active?`<button class="btn btn-green btn-sm" onclick="startVideo(${a.appointment_id},'${a.online_room_id}')">📹 Start Video Call</button>`:''}
+              ${active ?`<button class="btn btn-green btn-sm" onclick="joinCall('${a.online_room_id}',${a.appointment_id})">📹 Rejoin</button>`:''}
+              <button class="btn btn-finish btn-sm" onclick="complete(${a.appointment_id})">✓ Complete</button>
+            </div></div>`;}).join('')
+      : '<div class="empty"><div class="icon">💤</div>No online requests</div>';
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function startVideo(apptId, roomId) {
+  try { await api(`/api/appointments/${apptId}/start-video`,'POST');
+    toast('Video call started!'); loadOnline(); joinCall(roomId, apptId); }
+  catch(e) { toast(e.message,'err'); }
+}
+function joinCall(roomId, apptId) {
+  window.open(`/videocall.html?room=${roomId}&role=doctor&appt=${apptId}`,'_blank');
+}
+
+/* ── AVAILABILITY ── */
+let availState = {};
+
+function buildAvailGrid(saved) {
+  // saved = array from DB, keyed by day_of_week
+  const byDay = {};
+  (saved||[]).forEach(s => { byDay[s.day_of_week] = s; });
+
+  const grid = document.getElementById('availGrid');
+  grid.innerHTML = '';
+  for (let d = 0; d <= 6; d++) {
+    const s = byDay[d] || { day_of_week:d, start_time:'09:00', end_time:'17:00', slot_mins:30, is_active:0 };
+    const row = document.createElement('div');
+    row.className = 'avail-row';
+    row.id = 'arow-'+d;
+    row.innerHTML = `
+      <div class="avail-day">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]}</div>
+      <input type="time" id="astart-${d}" value="${(s.start_time||'09:00').slice(0,5)}">
+      <input type="time" id="aend-${d}"   value="${(s.end_time||'17:00').slice(0,5)}">
+      <select id="aslot-${d}">
+        <option value="15" ${s.slot_mins==15?'selected':''}>15 min</option>
+        <option value="20" ${s.slot_mins==20?'selected':''}>20 min</option>
+        <option value="30" ${s.slot_mins==30?'selected':''}>30 min</option>
+        <option value="45" ${s.slot_mins==45?'selected':''}>45 min</option>
+        <option value="60" ${s.slot_mins==60?'selected':''}>60 min</option>
+      </select>
+      <button class="toggle-btn ${s.is_active?'on':'off'}" id="atog-${d}"
+        onclick="toggleDay(${d})" title="${s.is_active?'Active':'Inactive'}"></button>`;
+    grid.appendChild(row);
+  }
+}
+
+function toggleDay(d) {
+  const btn = document.getElementById('atog-'+d);
+  btn.classList.toggle('on'); btn.classList.toggle('off');
+}
+
+async function loadAvailability() {
+  try {
+    const data = await api('/api/my/availability');
+    buildAvailGrid(data);
+  } catch(e) { toast(e.message,'err'); buildAvailGrid([]); }
+}
+
+async function saveAvailability() {
+  const slots = [];
+  for (let d = 0; d <= 6; d++) {
+    const isActive = document.getElementById('atog-'+d).classList.contains('on');
+    slots.push({
+      day_of_week: d,
+      start_time:  document.getElementById('astart-'+d).value,
+      end_time:    document.getElementById('aend-'+d).value,
+      slot_mins:   +document.getElementById('aslot-'+d).value,
+      is_active:   isActive ? 1 : 0,
+    });
+  }
+  try {
+    await api('/api/my/availability','PUT',{ slots });
+    toast('✅ Availability saved! Patients will see updated slots.','ok');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+/* ── INIT ── */
+function loadAll() { loadQueue(); loadSummary(); }
+loadAll();
+setInterval(() => {
+  const panel = document.querySelector('[data-panel].visible');
+  if (panel) {
+    const p = panel.getAttribute('data-panel');
+  if (p==='queue') loadQueue();
+    if (p==='online') loadOnline();
+  }
+}, 8000);
+
+function openPwModal()  { document.getElementById('pwModal').classList.add('open'); document.getElementById('pwOld').focus(); }
+function closePwModal() { document.getElementById('pwModal').classList.remove('open'); document.getElementById('pwAlert').className='pw-alert'; ['pwOld','pwNew','pwCon'].forEach(id=>document.getElementById(id).value=''); }
+async function changePassword() {
+  const old=document.getElementById('pwOld').value, nw=document.getElementById('pwNew').value, conf=document.getElementById('pwCon').value;
+  const al=document.getElementById('pwAlert'); al.className='pw-alert';
+  if (!old||!nw||!conf){al.textContent='All fields required';al.className='pw-alert err';return;}
+  if (nw!==conf){al.textContent='Passwords do not match';al.className='pw-alert err';return;}
+  if (nw.length<6){al.textContent='Min 6 characters';al.className='pw-alert err';return;}
+  try {
+    const res=await fetch('/api/auth/change-password',{method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({oldPassword:old,newPassword:nw})});
+    const data=await res.json();
+    if (!res.ok){al.textContent=data.error||'Failed';al.className='pw-alert err';return;}
+    al.textContent='✅ Changed! Logging out…';al.className='pw-alert ok';
+    setTimeout(()=>logout(),2000);
+  }catch{al.textContent='Network error';al.className='pw-alert err';}
+}
+</script>
+
+<!-- Change Password Modal -->
+<div class="modal-bg" id="pwModal" onclick="if(event.target===this)closePwModal()">
+  <div class="modal">
+    <h3>🔑 Change Password</h3>
+    <div class="field"><label>Current Password</label><input type="password" id="pwOld" placeholder="Current password"></div>
+    <div class="field"><label>New Password</label><input type="password" id="pwNew" placeholder="Min 6 characters"></div>
+    <div class="field"><label>Confirm New Password</label><input type="password" id="pwCon" placeholder="Repeat new password"></div>
+    <div class="pw-alert" id="pwAlert"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closePwModal()">Cancel</button>
+      <button class="mbtn mbtn-save" onclick="changePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

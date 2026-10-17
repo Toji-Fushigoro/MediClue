@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediClue – Patient Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --blue:#1a56db;--teal:#0ea5e9;--green:#10b981;
+    --orange:#f59e0b;--red:#ef4444;--purple:#8b5cf6;
+    --bg:#060f1e;--surface:rgba(255,255,255,.04);
+    --border:rgba(255,255,255,.09);--text:#e2e8f0;--muted:#64748b;
+  }
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+    background-image:radial-gradient(ellipse at 0% 0%,rgba(26,86,219,.12) 0%,transparent 55%),
+                     radial-gradient(ellipse at 100% 100%,rgba(14,165,233,.08) 0%,transparent 50%);}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:15px 26px;
+    border-bottom:1px solid var(--border);background:rgba(6,15,30,.85);
+    backdrop-filter:blur(12px);position:sticky;top:0;z-index:100;}
+  .brand{font-size:20px;font-weight:700;color:#fff}.brand span{color:var(--teal)}
+  .nav-r{display:flex;align-items:center;gap:10px}
+  .badge{background:var(--surface);border:1px solid var(--border);border-radius:7px;
+    padding:5px 12px;font-size:13px}
+  .btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);
+    border-radius:7px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px;
+    transition:all .2s}
+  .btn-logout:hover{border-color:var(--red);color:var(--red)}
+  .btn-chpw{background:transparent;border:1px solid var(--border);color:var(--muted);
+    border-radius:7px;padding:5px 12px;cursor:pointer;font-family:inherit;font-size:12px;
+    transition:all .2s}
+  .btn-chpw:hover{border-color:var(--teal);color:var(--teal)}
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;z-index:500;
+    opacity:0;pointer-events:none;transition:opacity .25s}
+  .modal-bg.open{opacity:1;pointer-events:all}
+  .modal{background:#0d1a2e;border:1px solid var(--border);border-radius:16px;
+    padding:28px 28px 24px;width:100%;max-width:360px;
+    transform:translateY(20px);transition:transform .25s}
+  .modal-bg.open .modal{transform:translateY(0)}
+  .modal h3{font-size:16px;font-weight:700;margin-bottom:16px}
+  .modal .field{margin-bottom:13px}
+  .modal label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:500}
+  .modal input{width:100%;padding:10px 12px;background:rgba(255,255,255,.06);
+    border:1px solid var(--border);border-radius:8px;color:var(--text);
+    font-family:inherit;font-size:13px}
+  .modal input:focus{outline:none;border-color:rgba(59,130,246,.5)}
+  .modal-btns{display:flex;gap:9px;margin-top:18px}
+  .modal-btns .mbtn{flex:1;padding:9px;border-radius:8px;font-family:inherit;
+    font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+  .mbtn-save{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff}
+  .mbtn-cancel{background:rgba(255,255,255,.07);color:var(--muted)}
+  .pw-alert{margin-top:11px;padding:8px 12px;border-radius:7px;font-size:12px;display:none}
+  .pw-alert.ok {display:block;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+  .pw-alert.err{display:block;background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.3); color:#fca5a5}
+
+  main{max-width:1100px;margin:0 auto;padding:24px 18px}
+  .page-title{font-size:22px;font-weight:700;margin-bottom:4px}
+  .page-sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+
+  /* Tab navigation */
+  .tabs{display:flex;gap:6px;margin-bottom:22px;
+    background:rgba(255,255,255,.03);border:1px solid var(--border);
+    border-radius:12px;padding:5px;width:fit-content}
+  .tab{padding:8px 20px;border-radius:8px;border:none;background:transparent;
+    color:var(--muted);cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;
+    transition:all .2s}
+  .tab.active{background:var(--blue);color:#fff}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+  @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:16px;text-align:center}
+  .stat .val{font-size:26px;font-weight:700;color:var(--teal)}
+  .stat .lbl{font-size:11px;color:var(--muted);margin-top:3px}
+
+  /* Cards */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px;margin-bottom:18px}
+  .card-title{font-size:14px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+
+  /* Form */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.grid2{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;color:var(--muted);margin:0 0 5px;font-weight:500}
+  input,select{width:100%;padding:10px 12px;background:rgba(255,255,255,.06);
+    border:1px solid var(--border);border-radius:8px;color:var(--text);
+    font-family:inherit;font-size:13px;transition:border-color .2s}
+  input:focus,select:focus{outline:none;border-color:rgba(59,130,246,.5)}
+  input::placeholder{color:var(--muted)}
+  select option{background:#1a2744}
+  .field{margin-bottom:14px}
+
+  /* Buttons */
+  .btn{padding:10px 18px;border-radius:8px;font-family:inherit;font-size:13px;
+    font-weight:600;cursor:pointer;border:none;transition:all .2s;width:100%}
+  .btn-primary{background:linear-gradient(135deg,var(--blue),#3b82f6);color:#fff}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,86,219,.4)}
+  .btn-sm{width:auto;padding:5px 13px;font-size:12px}
+  .btn-online{background:rgba(14,165,233,.15);color:var(--teal);border:1px solid rgba(14,165,233,.3)}
+  .btn-online:hover{background:rgba(14,165,233,.25)}
+  .btn-join{background:linear-gradient(135deg,var(--green),#059669);color:#fff}
+  .btn-join:hover{transform:scale(1.03);box-shadow:0 4px 14px rgba(16,185,129,.4)}
+  .btn-cancel{background:rgba(239,68,68,.1);color:#fca5a5;border:1px solid rgba(239,68,68,.2)}
+
+  /* Appointment cards */
+  .appt-list{display:flex;flex-direction:column;gap:10px}
+  .appt-card{background:rgba(255,255,255,.03);border:1px solid var(--border);
+    border-radius:11px;padding:14px;transition:border-color .2s}
+  .appt-card:hover{border-color:rgba(59,130,246,.35)}
+  .appt-card.online-mode{border-left:3px solid var(--teal)}
+  .appt-card.video-active{border-left:3px solid var(--green);background:rgba(16,185,129,.05)}
+  .appt-header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .appt-doctor{font-weight:600;font-size:14px}
+  .appt-dept{color:var(--muted);font-size:12px;margin-top:2px}
+  .appt-meta{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
+  .appt-meta span{font-size:12px;color:var(--muted)}
+  .appt-actions{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+
+  /* Status pills */
+  .pill{padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+  .s-booked    {background:rgba(26,86,219,.2);color:#93c5fd}
+  .s-waiting   {background:rgba(245,158,11,.2);color:#fcd34d}
+  .s-online    {background:rgba(14,165,233,.2);color:#7dd3fc}
+  .s-video     {background:rgba(16,185,129,.2);color:#6ee7b7}
+  .s-completed {background:rgba(100,116,139,.2);color:#94a3b8}
+  .s-cancelled {background:rgba(239,68,68,.15);color:#fca5a5}
+
+  /* Doctor cards */
+  .doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .doc-card{background:rgba(255,255,255,.03);border:1px solid var(--border);
+    border-radius:12px;padding:16px;cursor:pointer;transition:all .2s}
+  .doc-card:hover,.doc-card.selected{border-color:var(--blue);background:rgba(26,86,219,.07)}
+  .doc-name{font-weight:600;font-size:14px}
+  .doc-dept{color:var(--muted);font-size:12px;margin-top:3px}
+  .doc-meta{font-size:11px;color:var(--muted);margin-top:8px}
+  .doc-avail{font-size:11px;color:var(--teal);margin-top:4px}
+
+  /* Slot grid */
+  .slot-grid{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .slot-btn{padding:6px 13px;border-radius:7px;border:1px solid var(--border);
+    background:transparent;color:var(--text);cursor:pointer;font-size:12px;
+    font-family:inherit;transition:all .2s}
+  .slot-btn:hover:not(:disabled){border-color:var(--blue);background:rgba(26,86,219,.15);color:#93c5fd}
+  .slot-btn.selected{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .slot-btn:disabled{opacity:.3;cursor:not-allowed}
+
+  .queue-info{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);
+    border-radius:9px;padding:10px 14px;margin-top:10px;font-size:13px;color:#fcd34d}
+
+  .empty{text-align:center;padding:36px 16px;color:var(--muted);font-size:13px}
+  .empty .icon{font-size:36px;margin-bottom:10px}
+
+  #toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:9px;
+    font-size:13px;font-weight:500;transform:translateY(80px);opacity:0;
+    transition:all .3s;z-index:999}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.ok {background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+  #toast.err{background:rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.3); color:#fca5a5}
+  #toast.info{background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);color:#7dd3fc}
+
+  [data-panel]{display:none}[data-panel].visible{display:block}
+</style>
+</head>
+<body>
+<nav>
+  <div class="brand">Medi<span>Clue</span> <small style="font-size:11px;color:var(--muted);font-weight:400">Patient Portal</small></div>
+  <div class="nav-r">
+    <span class="badge" id="userBadge">…</span>
+    <button class="btn-chpw" onclick="openPwModal()">🔑 Change Password</button>
+    <button class="btn-logout" onclick="logout()">Sign out</button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-title">My Health Dashboard</div>
+  <div class="page-sub">View appointments, book new visits, and join online consultations</div>
+
+  <div class="stats">
+    <div class="stat"><div class="val" id="sTot">–</div><div class="lbl">Total Appointments</div></div>
+    <div class="stat"><div class="val" id="sUp">–</div><div class="lbl">Upcoming</div></div>
+    <div class="stat"><div class="val" id="sOnl">–</div><div class="lbl">Online Pending</div></div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabs">
+    <button class="tab active" onclick="showPanel('appointments')">📋 My Appointments</button>
+    <button class="tab"        onclick="showPanel('book')">➕ Book Appointment</button>
+  </div>
+
+  <!-- ── APPOINTMENTS PANEL ── -->
+  <div data-panel="appointments" class="visible">
+    <div class="card">
+      <div class="card-title">📋 My Appointments</div>
+      <div id="apptList"><div class="empty" style="padding:20px">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- ── BOOK APPOINTMENT PANEL ── -->
+  <div data-panel="book">
+    <div class="card">
+      <div class="card-title">🏥 Select Doctor</div>
+      <div class="doc-grid" id="docGrid"><div class="empty">Loading doctors…</div></div>
+    </div>
+
+    <div class="card" id="bookForm" style="display:none">
+      <div class="card-title">📅 Choose Date & Slot</div>
+      <div class="grid2">
+        <div class="field"><label>Date</label>
+          <input type="date" id="bDate" onchange="loadSlots()"></div>
+        <div class="field"><label>Urgency</label>
+          <select id="bUrgency">
+            <option value="1">1 – Routine</option>
+            <option value="2" selected>2 – Normal</option>
+            <option value="3">3 – Urgent</option>
+            <option value="4">4 – Critical</option>
+          </select></div>
+      </div>
+      <label>Available Time Slots</label>
+      <div class="slot-grid" id="slotGrid"><span style="color:var(--muted);font-size:13px">Select a date first</span></div>
+      <div style="margin-top:16px">
+        <button class="btn btn-primary" onclick="bookAppt()">Confirm Booking</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const token    = localStorage.getItem('mc_token');
+const role     = localStorage.getItem('mc_role');
+const username = localStorage.getItem('mc_username');
+const linkedId = localStorage.getItem('mc_linkedId');
+
+if (!token || role !== 'PATIENT') { window.location.href = '/login.html'; }
+document.getElementById('userBadge').textContent = '🧑 ' + username;
+
+function logout() { localStorage.clear(); window.location.href = '/login.html'; }
+
+function openPwModal()  { document.getElementById('pwModal').classList.add('open'); document.getElementById('pwOld').focus(); }
+function closePwModal() { document.getElementById('pwModal').classList.remove('open'); document.getElementById('pwAlert').className='pw-alert'; ['pwOld','pwNew','pwCon'].forEach(id=>document.getElementById(id).value=''); }
+
+async function changePassword() {
+  const old  = document.getElementById('pwOld').value;
+  const nw   = document.getElementById('pwNew').value;
+  const conf = document.getElementById('pwCon').value;
+  const al   = document.getElementById('pwAlert');
+  al.className = 'pw-alert';
+  if (!old || !nw || !conf) { al.textContent='All fields are required'; al.className='pw-alert err'; return; }
+  if (nw !== conf) { al.textContent='New passwords do not match'; al.className='pw-alert err'; return; }
+  if (nw.length < 6) { al.textContent='Password must be at least 6 characters'; al.className='pw-alert err'; return; }
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ oldPassword:old, newPassword:nw }),
+    });
+    const data = await res.json();
+    if (!res.ok) { al.textContent = data.error||'Failed'; al.className='pw-alert err'; return; }
+    al.textContent = '✅ Password changed! Please log in again.'; al.className='pw-alert ok';
+    setTimeout(() => { logout(); }, 2000);
+  } catch { al.textContent='Network error'; al.className='pw-alert err'; }
+}
+
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3500);
+}
+
+async function api(url, method='GET', body) {
+  const res = await fetch(url, {
+    method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error');
+  return data;
+}
+
+function showPanel(name) {
+  document.querySelectorAll('[data-panel]').forEach(el => el.classList.remove('visible'));
+  document.querySelector(`[data-panel="${name}"]`).classList.add('visible');
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active',
+    (name==='appointments'&&i===0)||(name==='book'&&i===1)));
+  if (name==='book') loadDoctors();
+}
+
+/* ── STATUS ── */
+const S_CLS = {
+  BOOKED:'s-booked',WAITING:'s-waiting',IN_CONSULTATION:'s-waiting',
+  ONLINE_PENDING:'s-online',IN_VIDEO_CALL:'s-video',COMPLETED:'s-completed',CANCELLED:'s-cancelled'
+};
+function statusLabel(a) {
+  if (a.consultation_mode==='ONLINE') {
+    if (a.status==='ONLINE_PENDING') return '🔵 Online – Pending';
+    if (a.status==='IN_VIDEO_CALL')  return '🟢 Video Active';
+  }
+  return a.status.replace(/_/g,' ');
+}
+
+/* ── APPOINTMENTS ── */
+async function loadAppointments() {
+  try {
+    const appts = await api('/api/my/appointments');
+    const total    = appts.length;
+    const upcoming = appts.filter(a=>['BOOKED','WAITING','ONLINE_PENDING','IN_VIDEO_CALL'].includes(a.status)).length;
+    const online   = appts.filter(a=>a.consultation_mode==='ONLINE'&&a.status==='ONLINE_PENDING').length;
+    document.getElementById('sTot').textContent = total;
+    document.getElementById('sUp').textContent  = upcoming;
+    document.getElementById('sOnl').textContent = online;
+
+    if (!appts.length) {
+      document.getElementById('apptList').innerHTML =
+        `<div class="empty"><div class="icon">📭</div>No appointments yet.<br>
+         <button class="btn btn-primary btn-sm" style="margin-top:12px" onclick="showPanel('book')">Book now</button></div>`;
+      return;
+    }
+    document.getElementById('apptList').innerHTML =
+      `<div class="appt-list">${appts.map(a => {
+        const isOnl  = a.consultation_mode==='ONLINE';
+        const canOnl = a.status==='BOOKED' && !isOnl;
+        const canJoin= isOnl && a.status==='IN_VIDEO_CALL';
+        const canCnl = a.status==='BOOKED';
+        const cls    = isOnl ? (a.status==='IN_VIDEO_CALL'?'video-active':'online-mode') : '';
+        return `<div class="appt-card ${cls}">
+          <div class="appt-header">
+            <div><div class="appt-doctor">${a.doctor}</div><div class="appt-dept">${a.department}</div></div>
+            <span class="pill ${S_CLS[a.status]||''}">${statusLabel(a)}</span>
+          </div>
+          <div class="appt-meta">
+            <span>📅 ${a.slot_date||'Walk-in'}</span><span>🕐 ${a.slot_time||'–'}</span>
+            <span>${isOnl?'💻 Online':'🏥 Physical'}</span>
+          </div>
+          ${isOnl&&a.status==='ONLINE_PENDING'?`<div class="queue-info">⏳ Waiting for doctor to start the call…</div>`:''}
+          <div class="appt-actions">
+            ${canOnl ?`<button class="btn btn-sm btn-online" onclick="reqOnline(${a.appointment_id})">💻 Switch to Online</button>`:''}
+            ${canJoin?`<button class="btn btn-sm btn-join"   onclick="joinCall('${a.online_room_id}',${a.appointment_id})">📹 Join Video Call</button>`:''}
+            ${canCnl ?`<button class="btn btn-sm btn-cancel" onclick="cancelAppt(${a.appointment_id})">✕ Cancel</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function reqOnline(id) {
+  try { await api(`/api/appointments/${id}/request-online`,'POST');
+    toast('✅ Switched to online! Doctor will join soon.'); loadAppointments(); }
+  catch(e) { toast(e.message,'err'); }
+}
+async function cancelAppt(id) {
+  try { await api(`/api/appointments/${id}`,'DELETE'); toast('Cancelled'); loadAppointments(); }
+  catch(e) { toast(e.message,'err'); }
+}
+function joinCall(roomId, apptId) {
+  window.open(`/videocall.html?room=${roomId}&role=patient&appt=${apptId}`,'_blank');
+}
+
+/* ── BOOK APPOINTMENT ── */
+let selectedDoctorId = null, selectedSlot = null;
+
+async function loadDoctors() {
+  try {
+    const docs = await api('/api/doctors');
+    document.getElementById('docGrid').innerHTML = docs.map(d =>
+      `<div class="doc-card" id="dc-${d.doctor_id}" onclick="selectDoctor(${d.doctor_id},'${d.name}')">
+        <div class="doc-name">👨‍⚕️ ${d.name}</div>
+        <div class="doc-dept">${d.department}</div>
+        <div class="doc-meta">🏥 Room ${d.room_no} · Floor ${d.floor_no}</div>
+      </div>`).join('');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function selectDoctor(id, name) {
+  selectedDoctorId = id; selectedSlot = null;
+  document.querySelectorAll('.doc-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('dc-'+id).classList.add('selected');
+  document.getElementById('bookForm').style.display = 'block';
+  document.getElementById('bDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('slotGrid').innerHTML = '<span style="color:var(--muted);font-size:13px">Loading slots…</span>';
+  loadSlots();
+}
+
+async function loadSlots() {
+  if (!selectedDoctorId) return;
+  const date = document.getElementById('bDate').value;
+  if (!date) return;
+  try {
+    const slots = await api(`/api/doctors/${selectedDoctorId}/slots?date=${date}`);
+    if (!slots.length) {
+      document.getElementById('slotGrid').innerHTML =
+        '<span style="color:var(--muted);font-size:13px">Doctor not available on this day</span>'; return;
+    }
+    selectedSlot = null;
+    document.getElementById('slotGrid').innerHTML = slots.map(s =>
+      `<button class="slot-btn" id="slot-${s.time}" onclick="selectSlot('${s.time}')"
+        ${s.available?'':'disabled'}>${s.time}${s.available?'':' ✗'}</button>`
+    ).join('');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+function selectSlot(time) {
+  selectedSlot = time;
+  document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+  const el = document.getElementById('slot-'+time);
+  if (el) el.classList.add('selected');
+}
+
+async function bookAppt() {
+  if (!selectedDoctorId) return toast('Please select a doctor first','err');
+  if (!selectedSlot)     return toast('Please select a time slot','err');
+  const date    = document.getElementById('bDate').value;
+  const urgency = +document.getElementById('bUrgency').value;
+  try {
+    const r = await api('/api/appointments','POST',{
+      patientId: +linkedId, doctorId: selectedDoctorId,
+      date, time: selectedSlot, urgency,
+    });
+    toast(`✅ Appointment #${r.appointment_id} booked!`);
+    selectedSlot = null;
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    loadSlots();
+    setTimeout(() => { showPanel('appointments'); loadAppointments(); }, 1200);
+  } catch(e) { toast(e.message,'err'); }
+}
+
+/* ── INIT ── */
+loadAppointments();
+setInterval(loadAppointments, 10000);
+</script>
+
+<!-- Change Password Modal -->
+<div class="modal-bg" id="pwModal" onclick="if(event.target===this)closePwModal()">
+  <div class="modal">
+    <h3>🔑 Change Password</h3>
+    <div class="field"><label>Current Password</label>
+      <input type="password" id="pwOld" placeholder="Enter current password"></div>
+    <div class="field"><label>New Password</label>
+      <input type="password" id="pwNew" placeholder="At least 6 characters"></div>
+    <div class="field"><label>Confirm New Password</label>
+      <input type="password" id="pwCon" placeholder="Repeat new password"></div>
+    <div class="pw-alert" id="pwAlert"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closePwModal()">Cancel</button>
+      <button class="mbtn mbtn-save"   onclick="changePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+</body>
+
+</html>
