@@ -159,6 +159,29 @@
   #toast.info{background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.3);color:#7dd3fc}
 
   [data-panel]{display:none}[data-panel].visible{display:block}
+
+  /* ── Note modal ── */
+  .note-modal{background:#0b1628;border:1px solid rgba(139,92,246,.25);border-radius:18px;
+    padding:28px;width:100%;max-width:500px;
+    transform:translateY(20px);transition:transform .25s;}
+  .modal-bg.open .note-modal{transform:translateY(0)}
+  .note-modal h3{font-size:16px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .note-modal .note-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+  .note-textarea{width:100%;min-height:160px;padding:14px;background:rgba(255,255,255,.05);
+    border:1px solid rgba(139,92,246,.25);border-radius:10px;color:var(--text);
+    font-family:'Inter',sans-serif;font-size:13px;line-height:1.6;resize:vertical;
+    transition:border-color .2s}
+  .note-textarea:focus{outline:none;border-color:rgba(139,92,246,.6);background:rgba(139,92,246,.04)}
+  .note-textarea::placeholder{color:var(--muted)}
+  .char-count{font-size:11px;color:var(--muted);text-align:right;margin-top:5px}
+  .note-tags{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+  .note-tag{padding:4px 11px;border-radius:99px;font-size:11px;font-weight:500;
+    border:1px solid rgba(139,92,246,.3);color:#c4b5fd;cursor:pointer;
+    background:rgba(139,92,246,.08);transition:all .15s}
+  .note-tag:hover{background:rgba(139,92,246,.2);border-color:rgba(139,92,246,.6)}
+  .note-modal .modal-btns{gap:10px;margin-top:16px}
+  .mbtn-note{background:linear-gradient(135deg,var(--purple),#7c3aed);color:#fff}
+  .mbtn-note:hover{box-shadow:0 4px 14px rgba(139,92,246,.4)}
 </style>
 </head>
 <body>
@@ -292,7 +315,10 @@ async function loadQueue() {
       ? `<div class="in-consult">
           <div><div class="ic-lbl">Currently consulting</div>
             <div class="ic-name">👤 ${q.inConsultation.patient_name}</div></div>
-          <button class="btn btn-finish btn-sm" onclick="complete(${q.inConsultation.id})">✓ Finish</button>
+          <div style="display:flex;gap:7px">
+            <button class="btn btn-finish btn-sm" onclick="complete(${q.inConsultation.id})">✓ Finish</button>
+            <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)" onclick="openNoteModal(${q.inConsultation.id})">📝 Note</button>
+          </div>
          </div>`
       : '<p style="font-size:13px;color:var(--muted);margin-bottom:10px">No active consultation</p>';
 
@@ -338,7 +364,13 @@ async function callNext() {
   catch(e) { toast(e.message,'err'); }
 }
 async function complete(id) {
-  try { await api(`/api/appointments/${id}/complete`,'POST',{}); toast('Done ✅'); loadQueue(); loadOnline(); loadSummary(); }
+  try {
+    await api(`/api/appointments/${id}/complete`,'POST',{});
+    toast('Consultation completed ✅ — add a note for the patient');
+    loadQueue(); loadOnline(); loadSummary();
+    // Prompt doctor to add note right after completion
+    openNoteModal(id);
+  }
   catch(e) { toast(e.message,'err'); }
 }
 
@@ -350,15 +382,19 @@ async function loadOnline() {
     const ol = document.getElementById('onlineList');
     ol.innerHTML = items.length
       ? items.map(a=>{
-          const active = a.status==='IN_VIDEO_CALL';
+          const active    = a.status==='IN_VIDEO_CALL';
+          const completed = a.status==='COMPLETED';
+          const statusLabel = active ? '🟢 In Call' : completed ? '✅ Completed' : '🔵 Waiting';
           return `<div class="online-card ${active?'active':''}">
             <div class="on-patient">👤 ${a.patient_name}</div>
-            <div class="on-meta">📅 ${a.slot_date||'–'} ${a.slot_time||''} · ${active?'🟢 In Call':'🔵 Waiting'}</div>
+            <div class="on-meta">📅 ${a.slot_date||'–'} ${a.slot_time||''} · ${statusLabel}</div>
             <div class="on-actions">
-              ${!active?`<button class="btn btn-green btn-sm" onclick="startVideo(${a.appointment_id},'${a.online_room_id}')">📹 Start Video Call</button>`:''}
-              ${active ?`<button class="btn btn-green btn-sm" onclick="joinCall('${a.online_room_id}',${a.appointment_id})">📹 Rejoin</button>`:''}
-              <button class="btn btn-finish btn-sm" onclick="complete(${a.appointment_id})">✓ Complete</button>
-            </div></div>`;}).join('')
+              ${!active&&!completed?`<button class="btn btn-green btn-sm" onclick="startVideo(${a.appointment_id},'${a.online_room_id}')">📹 Start Video Call</button>`:''}
+              ${active?`<button class="btn btn-green btn-sm" onclick="joinCall('${a.online_room_id}',${a.appointment_id})">📹 Rejoin</button>`:''}
+              ${!completed?`<button class="btn btn-finish btn-sm" onclick="completeOnline(${a.appointment_id})">✓ Complete</button>`:''}
+              <button class="btn btn-sm" style="background:rgba(139,92,246,.15);color:#c4b5fd;border:1px solid rgba(139,92,246,.3)" onclick="openNoteModal(${a.appointment_id})">📝 ${completed?'View/Edit':'Add'} Note</button>
+            </div></div>`;
+          }).join('')
       : '<div class="empty"><div class="icon">💤</div>No online requests</div>';
   } catch(e) { toast(e.message,'err'); }
 }
@@ -370,6 +406,77 @@ async function startVideo(apptId, roomId) {
 }
 function joinCall(roomId, apptId) {
   window.open(`/videocall.html?room=${roomId}&role=doctor&appt=${apptId}`,'_blank');
+}
+
+/** End video call AND mark complete from the dashboard (without reopening the call page) */
+async function completeOnline(apptId) {
+  if (!confirm('Mark this online consultation as complete? If a video call is in progress it will be terminated for the patient.')) return;
+  try {
+    await api(`/api/appointments/${apptId}/force-complete`, 'POST',
+              { notes: 'Completed from doctor dashboard' });
+    toast('✅ Online consultation completed — patient call has been terminated');
+    loadOnline(); loadSummary();
+    openNoteModal(apptId);
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+/** Legacy helper kept for endAndComplete calls from older code */
+async function endAndComplete(apptId) {
+  if (!confirm('End the video call and mark this consultation as completed?')) return;
+  try {
+    await api(`/api/appointments/${apptId}/end-video`, 'POST', { notes: 'Completed from doctor dashboard' });
+    toast('✅ Video call ended & consultation completed');
+    loadOnline(); loadSummary();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+/* ── Doctor Note Modal ── */
+let _noteApptId = null;
+
+async function openNoteModal(apptId) {
+  _noteApptId = apptId;
+  const ta = document.getElementById('noteText');
+  ta.value = '';
+  document.getElementById('noteCharCount').textContent = '0 / 2000 characters';
+  // Try to load existing note
+  try {
+    const existing = await api(`/api/appointments/${apptId}/note`);
+    if (existing && existing.notes) {
+      ta.value = existing.notes;
+      updateCharCount();
+    }
+  } catch(_) { /* no note yet — that's fine */ }
+  document.getElementById('noteModal').classList.add('open');
+  ta.focus();
+}
+
+function closeNoteModal() {
+  document.getElementById('noteModal').classList.remove('open');
+  _noteApptId = null;
+}
+
+function updateCharCount() {
+  const len = document.getElementById('noteText').value.length;
+  document.getElementById('noteCharCount').textContent = `${len} / 2000 characters`;
+}
+
+function insertNoteTag(text) {
+  const ta = document.getElementById('noteText');
+  const cur = ta.value;
+  ta.value = cur + (cur && !cur.endsWith('\n') ? '\n' : '') + text + ': ';
+  ta.focus();
+  updateCharCount();
+}
+
+async function saveNote() {
+  if (!_noteApptId) return;
+  const notes = document.getElementById('noteText').value.trim();
+  if (!notes) { toast('Please write a note before saving','err'); return; }
+  try {
+    await api(`/api/appointments/${_noteApptId}/add-note`, 'POST', { notes });
+    toast('📝 Note saved successfully!','ok');
+    closeNoteModal();
+  } catch(e) { toast(e.message,'err'); }
 }
 
 /* ── AVAILABILITY ── */
@@ -446,6 +553,19 @@ setInterval(() => {
   }
 }, 8000);
 
+/* ── Real-time updates via Socket.io ── */
+// The server broadcasts 'appointment-completed' when a video call is ended by the doctor
+// This keeps the Online panel and Summary up-to-date without a manual refresh
+const _io = io();
+_io.on('appointment-completed', ({ appointment_id, status }) => {
+  loadOnline();
+  loadSummary();
+  toast(`📋 Appointment #${appointment_id} marked ${status}`, 'info');
+});
+_io.on('video-call-ended', ({ appointmentId }) => {
+  loadOnline();
+});
+
 function openPwModal()  { document.getElementById('pwModal').classList.add('open'); document.getElementById('pwOld').focus(); }
 function closePwModal() { document.getElementById('pwModal').classList.remove('open'); document.getElementById('pwAlert').className='pw-alert'; ['pwOld','pwNew','pwCon'].forEach(id=>document.getElementById(id).value=''); }
 async function changePassword() {
@@ -477,6 +597,41 @@ async function changePassword() {
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closePwModal()">Cancel</button>
       <button class="mbtn mbtn-save" onclick="changePassword()">Update Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Doctor Note Modal ── -->
+<div class="modal-bg" id="noteModal" onclick="if(event.target===this)closeNoteModal()">
+  <div class="note-modal">
+    <h3>📝 <span id="noteModalTitle">Patient Note</span></h3>
+    <div class="note-sub" id="noteModalSub">Add a clinical note for this consultation. It will be visible to the patient.</div>
+
+    <div class="note-tags">
+      <button class="note-tag" onclick="insertNoteTag('Diagnosis')">🔬 Diagnosis</button>
+      <button class="note-tag" onclick="insertNoteTag('Prescription')">💊 Prescription</button>
+      <button class="note-tag" onclick="insertNoteTag('Instructions')">📋 Instructions</button>
+      <button class="note-tag" onclick="insertNoteTag('Follow-up')">📅 Follow-up</button>
+      <button class="note-tag" onclick="insertNoteTag('Observations')">👁 Observations</button>
+    </div>
+
+    <textarea
+      id="noteText"
+      class="note-textarea"
+      maxlength="2000"
+      placeholder="Write your clinical notes here…
+E.g.
+Diagnosis: Viral upper respiratory infection
+Prescription: Paracetamol 500mg – 3×/day for 5 days
+Instructions: Rest, stay hydrated
+Follow-up: In 7 days if symptoms persist"
+      oninput="updateCharCount()"
+    ></textarea>
+    <div class="char-count" id="noteCharCount">0 / 2000 characters</div>
+
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeNoteModal()">Cancel</button>
+      <button class="mbtn mbtn-note" onclick="saveNote()">💾 Save Note</button>
     </div>
   </div>
 </div>
